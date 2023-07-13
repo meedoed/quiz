@@ -45,7 +45,7 @@ func startQuiz(problems []problem) uint {
 func readFile(filename string) ([]problem, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		exit(err.Error())
 	}
 	defer file.Close()
 
