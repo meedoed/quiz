@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
-	var csvFilename = flag.String("file", "problems.csv", "a csv file in the format of 'question,answer'")
+	csvFilename := flag.String("file", "problems.csv", "a csv file in the format of 'question,answer'")
+	timeLimit := flag.Int("limit", 30, "the time limit for the quiz in seconds")
 	flag.Parse()
 
 	problems, err := readFile(*csvFilename)
@@ -18,24 +20,45 @@ func main() {
 		exit(err.Error())
 	}
 
-	correct := startQuiz(problems)
+	correct := startQuiz(problems, *timeLimit)
 	fmt.Printf("Вы ответили правильно на %d вопросов из %d\n", correct, len(problems))
 }
 
-func startQuiz(problems []problem) uint {
+func startQuiz(problems []problem, timeLimit int) uint {
 	fmt.Println("Начало викторины. Ваша задача - ввести правильное число.")
-	fmt.Println("Для начала нажмите enter...")
-	input := bufio.NewScanner(os.Stdin)
-	input.Scan()
+
+	for {
+		fmt.Println("Для начала нажмине enter...")
+		input := bufio.NewScanner(os.Stdin)
+		input.Scan()
+
+		if input.Text() == "" {
+			break
+		}
+	}
 
 	var correct uint
-	for i, p := range problems {
-		fmt.Printf("Problem #%d: %s = \n", i+1, p.q)
+	timer := time.NewTimer(time.Duration(timeLimit) * time.Second)
 
-		var answer string
-		fmt.Scanf("%s\n", &answer)
-		if answer == p.a {
-			correct++
+problemloop:
+	for i, p := range problems {
+		fmt.Printf("Задача #%d: %s = \n", i+1, p.q)
+
+		answerCh := make(chan string)
+		go func() {
+			var answer string
+			fmt.Scanf("%s\n", &answer)
+			answerCh <- answer
+		}()
+
+		select {
+		case <-timer.C:
+			fmt.Println("done")
+			break problemloop
+		case answer := <-answerCh:
+			if answer == p.a {
+				correct++
+			}
 		}
 	}
 
